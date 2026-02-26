@@ -85,9 +85,9 @@
         player = videojs('my-video', {
             fluid: true,
             playbackRates: [0.5, 1, 1.25, 1.5, 2],
-            userActions: { hotkeys: true }, // Пробел, стрелки, F (fullscreen)
+            userActions: { hotkeys: true },
             controlBar: {
-                volumePanel: { inline: true } // Тот самый нормальный слайдер
+                volumePanel: { inline: true }
             }
         });
         loadFiles();
@@ -101,8 +101,7 @@
             list.innerHTML = '';
 
             data.forEach(file => {
-                // Прячем системное
-                if (['index.html', '.gitattributes', '.idea', 'CNAME'].includes(file.name)) return;
+                if (['index.html', '.gitattributes', '.idea', 'CNAME', 'README.md'].includes(file.name)) return;
 
                 const isVideo = file.name.match(/\.(mkv|mp4|webm)$/i);
                 const li = document.createElement('li');
