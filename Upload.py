@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 # --- ТВОИ НАСТРОЙКИ ---
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = ""
 REPO_OWNER = "Romanfoks"
 REPO_NAME = "My-git"
 # ----------------------

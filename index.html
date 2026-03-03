@@ -18,13 +18,17 @@
         .file-item:hover { background: #272727; }
         .file-name { display: flex; align-items: center; gap: 12px; font-size: 15px; }
         .file-info { font-size: 12px; color: #aaa; }
+
         .video-section { display: none; margin-bottom: 40px; position: relative; }
         .video-js { width: 100% !important; height: auto !important; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 30px rgba(0,0,0,0.8); }
+
+        /* YouTube UI tweaks */
         .video-js .vjs-play-progress { background: #ff0000 !important; }
         .video-js .vjs-slider { background: rgba(255,255,255,0.2); }
         .video-js .vjs-volume-level { background: #fff !important; }
         .video-js .vjs-volume-panel { display: flex !important; align-items: center; }
         .video-js .vjs-volume-control.vjs-volume-horizontal { width: 5em !important; height: 3em !important; display: flex !important; align-items: center; }
+
         .video-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
         .video-title { font-size: 18px; margin: 0; font-weight: 500; }
         .close-btn { background: none; border: none; color: #aaa; font-size: 30px; cursor: pointer; transition: 0.2s; }
@@ -33,7 +37,6 @@
         .actions-bar { display: flex; gap: 10px; margin-top: 15px; }
         .btn-yt { display: inline-block; padding: 10px 20px; background: #272727; color: white; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; }
         .btn-yt:hover { background: #3f3f3f; }
-        .btn-copy { background: #3f3f3f; }
     </style>
 </head>
 <body>
@@ -42,18 +45,18 @@
     <div id="player-ui" class="video-section">
         <div class="video-header">
             <h3 id="current-title" class="video-title"></h3>
-            <button class="close-btn" onclick="closePlayer()" title="Close player">✕</button>
+            <button class="close-btn" onclick="closePlayer()">✕</button>
         </div>
         <video id="my-video" class="video-js vjs-theme-youtube vjs-big-play-centered" controls preload="auto"></video>
 
         <div class="actions-bar">
             <a id="download-link" class="btn-yt" href="#" target="_blank">Download</a>
-            <button id="copy-btn" class="btn-yt btn-copy" onclick="copyVideoLink()">🔗 Copy Link</button>
+            <button id="copy-btn" class="btn-yt" onclick="copyVideoLink()">🔗 Copy Link</button>
         </div>
     </div>
 
     <h1>Files</h1>
-    <ul id="file-list" class="file-list">Loading repository content...</ul>
+    <ul id="file-list" class="file-list">Loading...</ul>
 </div>
 
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
@@ -81,6 +84,7 @@
             list.innerHTML = '';
 
             data.forEach(file => {
+                // Игнорим системные файлы
                 if (['index.html', '.gitattributes', '.idea', 'CNAME', 'README.md', 'Upload.py'].includes(file.name)) return;
 
                 const isVideo = file.name.match(/\.(mkv|mp4|webm)$/i);
@@ -97,6 +101,7 @@
                 li.onclick = () => {
                     if (isVideo) {
                         playVideo(file);
+                        // Пункт 3: Обновляем хэш в строке
                         window.location.hash = encodeURIComponent(file.name);
                     } else {
                         window.open(file.html_url, '_blank');
@@ -105,6 +110,7 @@
                 list.appendChild(li);
             });
 
+            // Пункт 3 (продолжение): Авто-запуск если есть хэш в ссылке
             const currentHash = window.location.hash.substring(1);
             if (currentHash) {
                 const fileName = decodeURIComponent(currentHash);
@@ -128,13 +134,16 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // Пункт 5: Функция копирования
     function copyVideoLink() {
+        // Собираем полную ссылку: твой_сайт + # + название_видео
         const fullLink = window.location.origin + window.location.pathname + "#" + encodeURIComponent(currentVideoName);
+
         navigator.clipboard.writeText(fullLink).then(() => {
             const btn = document.getElementById('copy-btn');
-            const originalText = btn.innerText;
+            const oldText = btn.innerText;
             btn.innerText = "✅ Copied!";
-            setTimeout(() => { btn.innerText = originalText; }, 2000);
+            setTimeout(() => { btn.innerText = oldText; }, 2000);
         });
     }
 
@@ -142,7 +151,7 @@
         player.pause();
         player.src('');
         document.getElementById('player-ui').style.display = 'none';
-        window.location.hash = '';
+        window.location.hash = ''; // Чистим хэш при закрытии
     }
 </script>
 
