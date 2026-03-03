@@ -9,10 +9,7 @@
     <style>
         body { font-family: 'Roboto', sans-serif; background: #0f0f0f; color: #f1f1f1; padding: 20px; margin: 0; }
         .container { max-width: 1000px; margin: 0 auto; }
-
         h1 { font-size: 22px; font-weight: 500; border-bottom: 1px solid #3f3f3f; padding-bottom: 15px; margin-bottom: 20px; }
-
-        /* Список файлов */
         .file-list { background: transparent; padding: 0; }
         .file-item {
             list-style: none; padding: 12px 15px; border-radius: 8px;
@@ -21,38 +18,18 @@
         .file-item:hover { background: #272727; }
         .file-name { display: flex; align-items: center; gap: 12px; font-size: 15px; }
         .file-info { font-size: 12px; color: #aaa; }
-
-        /* Плеер */
         .video-section { display: none; margin-bottom: 40px; position: relative; }
-        .video-js {
-            width: 100% !important; height: auto !important; aspect-ratio: 16/9;
-            border-radius: 12px; overflow: hidden; box-shadow: 0 4px 30px rgba(0,0,0,0.8);
-        }
-
-        /* YouTube-стиль для громкости и прогресса */
+        .video-js { width: 100% !important; height: auto !important; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 30px rgba(0,0,0,0.8); }
         .video-js .vjs-play-progress { background: #ff0000 !important; }
         .video-js .vjs-slider { background: rgba(255,255,255,0.2); }
         .video-js .vjs-volume-level { background: #fff !important; }
-
-        /* Выезжающий слайдер громкости */
         .video-js .vjs-volume-panel { display: flex !important; align-items: center; }
-        .video-js .vjs-volume-control.vjs-volume-horizontal {
-            width: 5em !important;
-            height: 3em !important;
-            display: flex !important;
-            align-items: center;
-        }
-
+        .video-js .vjs-volume-control.vjs-volume-horizontal { width: 5em !important; height: 3em !important; display: flex !important; align-items: center; }
         .video-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
         .video-title { font-size: 18px; margin: 0; font-weight: 500; }
         .close-btn { background: none; border: none; color: #aaa; font-size: 30px; cursor: pointer; transition: 0.2s; }
         .close-btn:hover { color: #fff; transform: scale(1.1); }
-
-        .btn-dl {
-            display: inline-block; margin-top: 15px; padding: 10px 20px;
-            background: #272727; color: white; text-decoration: none;
-            border-radius: 20px; font-size: 14px; font-weight: 500;
-        }
+        .btn-dl { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #272727; color: white; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500; }
         .btn-dl:hover { background: #3f3f3f; }
     </style>
 </head>
@@ -64,10 +41,7 @@
             <h3 id="current-title" class="video-title"></h3>
             <button class="close-btn" onclick="closePlayer()" title="Close player">✕</button>
         </div>
-
-        <video id="my-video" class="video-js vjs-theme-youtube vjs-big-play-centered" controls preload="auto">
-        </video>
-
+        <video id="my-video" class="video-js vjs-theme-youtube vjs-big-play-centered" controls preload="auto"></video>
         <a id="download-link" class="btn-dl" href="#" target="_blank">Download Video</a>
     </div>
 
@@ -86,9 +60,7 @@
             fluid: true,
             playbackRates: [0.5, 1, 1.25, 1.5, 2],
             userActions: { hotkeys: true },
-            controlBar: {
-                volumePanel: { inline: true }
-            }
+            controlBar: { volumePanel: { inline: true } }
         });
         loadFiles();
     });
@@ -114,9 +86,24 @@
                     <span class="file-info">${(file.size / 1048576).toFixed(1)} MB</span>
                 `;
 
-                li.onclick = () => isVideo ? playVideo(file) : window.open(file.html_url, '_blank');
+                li.onclick = () => {
+                    if (isVideo) {
+                        playVideo(file);
+                        window.location.hash = encodeURIComponent(file.name);
+                    } else {
+                        window.open(file.html_url, '_blank');
+                    }
+                };
                 list.appendChild(li);
             });
+
+            // Авто-запуск по ссылке
+            const currentHash = window.location.hash.substring(1);
+            if (currentHash) {
+                const fileName = decodeURIComponent(currentHash);
+                const videoFile = data.find(f => f.name === fileName);
+                if (videoFile) playVideo(videoFile);
+            }
         } catch (e) { console.error("Error loading files"); }
     }
 
@@ -129,7 +116,9 @@
         document.getElementById('download-link').href = rawUrl;
 
         player.src({ type: 'video/mp4', src: rawUrl });
-        player.play();
+        player.ready(() => {
+            player.play();
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -137,6 +126,7 @@
         player.pause();
         player.src('');
         document.getElementById('player-ui').style.display = 'none';
+        window.location.hash = ''; // Очищаем ссылку при закрытии
     }
 </script>
 
