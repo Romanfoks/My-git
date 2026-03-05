@@ -13,7 +13,19 @@
         /* Твой ник вместо старого заголовка */
         h1 { font-size: 24px; font-weight: 500; border-bottom: 1px solid #3f3f3f; padding-bottom: 15px; margin-bottom: 20px; color: #fff; }
 
-        .file-list { background: transparent; padding: 0; }
+        .path-bar {
+            font-size: 13px;
+            color: #aaa;
+            margin: 8px 0 16px;
+        }
+        .crumb {
+            cursor: pointer;
+            color: #4ea3ff;
+        }
+        .crumb:hover {
+            text-decoration: underline;
+        }
+        .file-list { background: transparent; padding: 0; margin: 0; }
         .file-item {
             list-style: none; padding: 12px 15px; border-radius: 8px;
             cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.1s;
@@ -40,6 +52,35 @@
         .actions-bar { display: flex; gap: 10px; margin-top: 15px; }
         .btn-yt { display: inline-block; padding: 10px 24px; background: #272727; color: white; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: 0.2s; }
         .btn-yt:hover { background: #3f3f3f; }
+
+        .file-viewer {
+            display: none;
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #111;
+            border: 1px solid #333;
+        }
+        .file-viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .file-viewer-title {
+            margin: 0;
+            font-size: 16px;
+        }
+        .file-viewer-content {
+            max-height: 400px;
+            overflow: auto;
+            background: #050505;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: Consolas, Menlo, monospace;
+            font-size: 13px;
+            white-space: pre;
+        }
     </style>
 </head>
 <body>
@@ -60,7 +101,16 @@
 
     <h1>Romanfoks</h1>
 
+    <div id="path-bar" class="path-bar"></div>
     <ul id="file-list" class="file-list">Loading files...</ul>
+
+    <div id="file-viewer" class="file-viewer">
+        <div class="file-viewer-header">
+            <h3 id="file-viewer-title" class="file-viewer-title"></h3>
+            <button class="close-btn" onclick="closeFileViewer()">✕</button>
+        </div>
+        <pre id="file-viewer-content" class="file-viewer-content"></pre>
+    </div>
 </div>
 
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
@@ -69,6 +119,7 @@
     const repo = 'My-git';
     let player;
     let currentVideoName = "";
+    let currentPath = "";
 
     document.addEventListener('DOMContentLoaded', () => {
         player = videojs('my-video', {
@@ -77,38 +128,76 @@
             userActions: { hotkeys: true },
             controlBar: { volumePanel: { inline: true } }
         });
-        loadFiles();
+        loadFiles("");
     });
 
-    async function loadFiles() {
+    function renderPathBar() {
+        const bar = document.getElementById('path-bar');
+        const parts = currentPath ? currentPath.split('/') : [];
+        const crumbs = [];
+
+        // Корень
+        crumbs.push(`<span class="crumb" onclick="loadFiles('')">/</span>`);
+
+        let acc = "";
+        parts.forEach((p, idx) => {
+            acc = acc ? acc + "/" + p : p;
+            crumbs.push(
+                `<span> / </span><span class="crumb" onclick="loadFiles('${acc.replace(/'/g, "\\'")}')">${p}</span>`
+            );
+        });
+
+        bar.innerHTML = crumbs.join("");
+    }
+
+    async function loadFiles(path) {
         try {
-            const res = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/`);
+            currentPath = path || "";
+            renderPathBar();
+
+            const apiPath = currentPath ? `/${encodeURIComponent(currentPath).replace(/%2F/g, '/')}` : "/";
+            const res = await fetch(`https://api.github.com/repos/${user}/${repo}/contents${apiPath}`);
             const data = await res.json();
             const list = document.getElementById('file-list');
             list.innerHTML = '';
 
-            data.forEach(file => {
-                // Скрываем всё лишнее, включая скрипт загрузки
-                const forbidden = ['index.html', '.gitattributes', '.idea', 'CNAME', 'README.md', 'Upload.py', 'upload.py'];
-                if (forbidden.includes(file.name)) return;
+            const items = Array.isArray(data) ? data : [];
 
-                const isVideo = file.name.match(/\.(mkv|mp4|webm)$/i);
+            // Сначала папки, потом файлы
+            items
+                .sort((a, b) => {
+                    if (a.type === b.type) return a.name.localeCompare(b.name);
+                    return a.type === 'dir' ? -1 : 1;
+                })
+                .forEach(file => {
+                    // В корне скрываем служебные файлы, но в подпапках показываем всё
+                    if (!currentPath) {
+                        const forbiddenRoot = ['index.html', '.gitattributes', '.idea', 'CNAME', 'Upload.py', 'upload.py'];
+                        if (forbiddenRoot.includes(file.name)) return;
+                    }
+
+                    const isDir = file.type === 'dir';
+                    const isVideo = !isDir && file.name.match(/\.(mkv|mp4|webm)$/i);
                 const li = document.createElement('li');
                 li.className = 'file-item';
                 li.innerHTML = `
                     <div class="file-name">
-                        <span>${isVideo ? '▶️' : '📄'}</span>
+                        <span>${isDir ? '📁' : (isVideo ? '▶️' : '📄')}</span>
                         <span>${file.name}</span>
                     </div>
-                    <span class="file-info">${(file.size / 1048576).toFixed(1)} MB</span>
+                    <span class="file-info">
+                        ${isDir ? 'folder' : ((file.size / 1048576).toFixed(1) + ' MB')}
+                    </span>
                 `;
 
                 li.onclick = () => {
-                    if (isVideo) {
+                    if (isDir) {
+                        loadFiles(file.path);
+                    } else if (isVideo) {
                         playVideo(file);
                         window.location.hash = encodeURIComponent(file.name);
                     } else {
-                        window.open(file.html_url, '_blank');
+                        openFile(file);
                     }
                 };
                 list.appendChild(li);
@@ -117,7 +206,7 @@
             const currentHash = window.location.hash.substring(1);
             if (currentHash) {
                 const fileName = decodeURIComponent(currentHash);
-                const videoFile = data.find(f => f.name === fileName);
+                const videoFile = items.find(f => f.name === fileName);
                 if (videoFile) playVideo(videoFile);
             }
         } catch (e) { console.error("Error loading files"); }
@@ -126,7 +215,7 @@
     function playVideo(file) {
         currentVideoName = file.name;
         const ui = document.getElementById('player-ui');
-        const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/main/${encodeURIComponent(file.path)}`;
+        const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/main/${encodeURIComponent(file.path).replace(/%2F/g, '/')}`;
 
         ui.style.display = 'block';
         document.getElementById('current-title').innerText = file.name;
@@ -152,6 +241,47 @@
         player.src('');
         document.getElementById('player-ui').style.display = 'none';
         window.location.hash = '';
+    }
+
+    async function openFile(file) {
+        closePlayer();
+        const viewer = document.getElementById('file-viewer');
+        const title = document.getElementById('file-viewer-title');
+        const content = document.getElementById('file-viewer-content');
+
+        title.innerText = file.path || file.name;
+        content.textContent = 'Loading...';
+        viewer.style.display = 'block';
+
+        const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/main/${encodeURIComponent(file.path).replace(/%2F/g, '/')}`;
+
+        try {
+            const res = await fetch(rawUrl);
+            if (!res.ok) {
+                content.textContent = `Нельзя показать содержимое (HTTP ${res.status}). Открою файл на GitHub.`;
+                window.open(file.html_url, '_blank');
+                return;
+            }
+
+            const text = await res.text();
+            // Простая защита от очень больших файлов
+            if (text.length > 200000) {
+                content.textContent = 'Файл слишком большой для предпросмотра. Открою на GitHub.';
+                window.open(file.html_url, '_blank');
+                return;
+            }
+
+            content.textContent = text;
+        } catch (e) {
+            content.textContent = 'Ошибка загрузки файла. Открою на GitHub.';
+            window.open(file.html_url, '_blank');
+        }
+    }
+
+    function closeFileViewer() {
+        const viewer = document.getElementById('file-viewer');
+        viewer.style.display = 'none';
+        document.getElementById('file-viewer-content').textContent = '';
     }
 </script>
 
